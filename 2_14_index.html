@@ -82,7 +82,7 @@
             tasks = responseData.todos;
             renderTasks();
           })
-          .catch(() => {
+          .catch((error) => {
             deleteButton.disabled = false;
             deleteButton.textContent = "Удалить";
             alert("Кажется упал интернет, попробуй позже...");
@@ -113,12 +113,18 @@
       // запускаем цепочку промисов, чтобы асинхронные запросы выполнились последовательно - один после выполнения другого
 
 
-      fetch("https://webdev-hw-api.vercel.app/api/todos", {
+      fetch("https://webdev-hw-api.vercel.app/api/todos/with-error", {
         method: "POST",       // отправляем на сервер введенное пользователем сообщение
         body: JSON.stringify({
           text: textInputElement.value,
         }),
       }).then((response) => {
+        if (response.status === 500) {
+          throw new Error("Сервер сломался");  // throw new Error("...") можно заменить на Promise.reject("...")
+        }
+        if (response.status === 400) {
+          throw new Error("Плохой запрос");
+        }
         return response.json();  // преобразуем отправленное сообщение в json строку
       }).then(() => {
         return fetchAndRenderTasks();
@@ -130,7 +136,14 @@
       .catch((error) => {
         buttonElement.disabled = false;
         buttonElement.textContent = "Добавить";
-        alert("Что-то пошло не так, попробуй позже...");
+        if (error.message === "Сервер сломался") {
+          alert("Сервер сломался, попробуй позже");
+          return;
+        }
+        if (error.message === "Плохой запрос") {
+          alert(`Задачу "ничего" создать нельзя, займитесь чем-нибудь полезным`);
+          return;
+        }
         console.warn(error);
       });
 
