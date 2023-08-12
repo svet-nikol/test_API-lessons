@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Урок «Асинхронность»</title>
+  </head>
+
+  <body>
+    <h1>Список задач</h1>
+    <ul class="tasks" id="list">
+      <!-- Список рендерится из JS -->
+    </ul>
+    <br />
+    <div class="form">
+      <h3 class="form-title">Форма добавления</h3>
+      <div class="form-row">
+        Что нужно сделать:
+        <input
+          type="text"
+          id="text-input"
+          class="input"
+          placeholder="Выпить кофе"
+        />
+      </div>
+      <br />
+      <button class="button" id="add-button">Добавить</button>
+    </div>
+  </body>
+
+  <script>
+    const buttonElement = document.getElementById("add-button");
+    const listElement = document.getElementById("list");
+    const textInputElement = document.getElementById("text-input");
+
+    let tasks = [];
+
+    const fetchAndRenderTasks = () => {
+        return fetch("https://webdev-hw-api.vercel.app/api/todos", {
+            method: "GET",
+                })
+                .then((response) => {
+                    return response.json();
+                })                              // .then((response) => response.json())
+                .then((responseData) => {
+                    tasks = responseData.todos;
+                    renderTasks();
+                });
+    };
+
+
+    const renderTasks = () => {
+      const tasksHtml = tasks
+        .map((task) => {
+          return `
+          <li class="task">
+            <p class="task-text">
+              ${task.text}
+              <button data-id="${task.id}" class="button delete-button">Удалить</button>
+            </p>
+          </li>`;
+        })
+        .join("");
+
+      listElement.innerHTML = tasksHtml;
+      const deleteButtons = document.querySelectorAll(".delete-button");
+
+      for (const deleteButton of deleteButtons) {
+        deleteButton.addEventListener("click", (event) => {
+		      // TODO: Опишите в комментарии, что делает код на следующей строчке
+          event.stopPropagation();
+
+          deleteButton.disabled = true;
+          deleteButton.textContent = "Элемент удаляется...";
+
+          const id = deleteButton.dataset.id;
+          fetch("https://webdev-hw-api.vercel.app/api/todos/" + id, {
+            method: "DELETE",
+          }).then((response) => {
+            return response.json();
+          })
+          .then((responseData) => {
+            tasks = responseData.todos;
+            renderTasks();
+          })
+          .catch(() => {
+            deleteButton.disabled = false;
+            deleteButton.textContent = "Удалить";
+            alert("Кажется упал интернет, попробуй позже...");
+            console.warn(error);
+          });
+        });
+      }
+    };
+
+    fetchAndRenderTasks();
+    renderTasks();
+
+
+    // ДОБАВЛЯЕМ ЭЛЕМЕНТ НА СТРАНИЦУ НАЖАТИЕМ НА КНОПКУ "ДОБАВИТЬ" С ОТПРАВКОЙ И ПОЛУЧЕНИЕМ ДАННЫЕ ЧЕРЕЗ API НА/С СЕРВЕРА 
+
+
+    buttonElement.addEventListener("click", () => {    // тегу button в разметке html присвоили элемент и на элемент добавили событие при клике 
+      if (textInputElement.value === "") {
+        return;     // останавливаем выполнение функционала, если поле ввода для нового элемента при клике пустое
+      }
+
+
+      buttonElement.disabled = true;     // если поле ввода не пустое и клик произошел, то деактивируем кнопку 
+      buttonElement.textContent = "Элемент добавляется...";   // текстКонтект кнопки меняем с "Добавить" на "Элемент добавляется..."
+
+
+
+      // запускаем цепочку промисов, чтобы асинхронные запросы выполнились последовательно - один после выполнения другого
+
+
+      fetch("https://webdev-hw-api.vercel.app/api/todos", {
+        method: "POST",       // отправляем на сервер введенное пользователем сообщение
+        body: JSON.stringify({
+          text: textInputElement.value,
+        }),
+      }).then((response) => {
+        return response.json();  // преобразуем отправленное сообщение в json строку
+      }).then(() => {
+        return fetchAndRenderTasks();
+      }).then((data) => {
+        buttonElement.disabled = false;  // после добавления нового и рендера всего списка элементов активируем кнопку,элемент события   
+        buttonElement.textContent = "Добавить"; // и возвращаем "Добавить" вместо "Элемент добавляется..."
+        textInputElement.value = "";
+      })
+      .catch((error) => {
+        buttonElement.disabled = false;
+        buttonElement.textContent = "Добавить";
+        alert("Что-то пошло не так, попробуй позже...");
+        console.warn(error);
+      });
+
+      renderTasks();
+
+    });
+
+  </script>
+</html>
