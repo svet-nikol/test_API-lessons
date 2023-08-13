@@ -82,7 +82,7 @@
             tasks = responseData.todos;
             renderTasks();
           })
-          .catch(() => {
+          .catch((error) => {
             deleteButton.disabled = false;
             deleteButton.textContent = "Удалить";
             alert("Кажется упал интернет, попробуй позже...");
@@ -104,36 +104,55 @@
         return;     // останавливаем выполнение функционала, если поле ввода для нового элемента при клике пустое
       }
 
+    buttonElement.disabled = true;     // если поле ввода не пустое и клик произошел, то деактивируем кнопку 
+    buttonElement.textContent = "Элемент добавляется...";   // текстКонтект кнопки меняем с "Добавить" на "Элемент добавляется..."
 
-      buttonElement.disabled = true;     // если поле ввода не пустое и клик произошел, то деактивируем кнопку 
-      buttonElement.textContent = "Элемент добавляется...";   // текстКонтект кнопки меняем с "Добавить" на "Элемент добавляется..."
 
 
 
       // запускаем цепочку промисов, чтобы асинхронные запросы выполнились последовательно - один после выполнения другого
 
+      function postTask() {
 
-      fetch("https://webdev-hw-api.vercel.app/api/todos", {
+        fetch("https://webdev-hw-api.vercel.app/api/todos/with-error", {
         method: "POST",       // отправляем на сервер введенное пользователем сообщение
         body: JSON.stringify({
           text: textInputElement.value,
-        }),
-      }).then((response) => {
-        return response.json();  // преобразуем отправленное сообщение в json строку
-      }).then(() => {
-        return fetchAndRenderTasks();
-      }).then((data) => {
-        buttonElement.disabled = false;  // после добавления нового и рендера всего списка элементов активируем кнопку,элемент события   
-        buttonElement.textContent = "Добавить"; // и возвращаем "Добавить" вместо "Элемент добавляется..."
-        textInputElement.value = "";
-      })
-      .catch((error) => {
-        buttonElement.disabled = false;
-        buttonElement.textContent = "Добавить";
-        alert("Что-то пошло не так, попробуй позже...");
-        console.warn(error);
-      });
+          }),
+        })
+        .then((response) => {
+          if (response.status === 500) {
+            throw new Error("Сервер сломался");  // throw new Error("...") можно заменить на Promise.reject("...")
+          }
+          if (response.status === 400) {
+            throw new Error("Плохой запрос");
+          }
+          return response.json();  // преобразуем отправленное сообщение в json строку
+        })
+        .then(() => {
+          return fetchAndRenderTasks();
+        })
+        .then((data) => {
+          buttonElement.disabled = false;  // после добавления нового и рендера всего списка элементов активируем кнопку,элемент события   
+          buttonElement.textContent = "Добавить"; // и возвращаем "Добавить" вместо "Элемент добавляется..."
+          textInputElement.value = "";
+        })
+        .catch((error) => {
+          buttonElement.disabled = false;
+          buttonElement.textContent = "Добавить";
+          if (error.message === "Сервер сломался") {
+            postTask();        // вызываем функицию с фетч пост до тех пор пока не уйдет ошибка сервера - статус код 500
+          }
+          if (error.message === "Плохой запрос") {
+            alert(`Задачу "ничего" создать нельзя, займитесь чем-нибудь полезным`);
+            return;
+          }
+          console.warn(error);
+        });
 
+      }
+
+      postTask();
       renderTasks();
 
     });
